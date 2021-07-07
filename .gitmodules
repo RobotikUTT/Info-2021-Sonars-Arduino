@@ -1,0 +1,12 @@
+[submodule "lib/ArduinoSTL"]
+	path = lib/ArduinoSTL
+	url = git@github.com:mike-matera/ArduinoSTL.git
+[submodule "lib/Ultrasonic"]
+	path = lib/Ultrasonic
+	url = git@github.com:ErickSimoes/Ultrasonic.git
+[submodule "lib/Info-2021_Interface"]
+	path = lib/Info-2021_Interface
+	url = git@github.com:RobotikUTT/Info-2021_Interface.git
+[submodule "lib/arduino-mcp2515"]
+	path = lib/arduino-mcp2515
+	url = git@github.com:autowp/arduino-mcp2515.git
