@@ -29,8 +29,8 @@ Ultrasonic sonar0(SONAR_TRIG_FRONT_L, SONAR_ECHO_FRONT_L);
 Ultrasonic sonar1(SONAR_TRIG_FRONT_R, SONAR_ECHO_FRONT_R);
 Ultrasonic sonar2(SONAR_TRIG_BACK_L, SONAR_ECHO_BACK_L);
 Ultrasonic sonar3(SONAR_TRIG_BACK_R, SONAR_ECHO_BACK_R);
-Ultrasonic sonar4(); //pins?
-Ultrasonic sonar5(); //pins?
+Ultrasonic sonar4(SONAR_TRIG_RIGHT, SONAR_ECHO_RIGHT); 
+Ultrasonic sonar5(SONAR_TRIG_LEFT, SONAR_ECHO_LEFT); 
 unsigned long lastMillis = 0;
 
 // Serial handler for frames coming from serial
