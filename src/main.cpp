@@ -14,6 +14,11 @@
 
 #include <Ultrasonic.h>
 
+ #define min(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a < _b ? _a : _b; })
+
 // Sonars functions and objects
 void sendSonarsValueToCan();
 
@@ -25,52 +30,88 @@ void sendSonarsValueToCan();
   SONAR_TRIG_BACK, SONAR_ECHO_BACK
 );*/
 
-Ultrasonic sonar0(SONAR_TRIG_FRONT_L, SONAR_ECHO_FRONT_L);
-Ultrasonic sonar1(SONAR_TRIG_FRONT_R, SONAR_ECHO_FRONT_R);
-Ultrasonic sonar2(SONAR_TRIG_BACK_L, SONAR_ECHO_BACK_L);
-Ultrasonic sonar3(SONAR_TRIG_BACK_R, SONAR_ECHO_BACK_R);
-Ultrasonic sonar4(SONAR_TRIG_LEFT, SONAR_ECHO_LEFT); 
-Ultrasonic sonar5(SONAR_TRIG_RIGHT, SONAR_ECHO_RIGHT); 
-unsigned long lastMillis = 0;
+Ultrasonic sonars[NB_SONARS] = {
+  Ultrasonic(SONAR_TRIG_FRONT_L, SONAR_ECHO_FRONT_L),
+  Ultrasonic(SONAR_TRIG_FRONT_R, SONAR_ECHO_FRONT_R),
+  Ultrasonic(SONAR_TRIG_BACK_L, SONAR_ECHO_BACK_L),
+  Ultrasonic(SONAR_TRIG_BACK_R, SONAR_ECHO_BACK_R),
+  Ultrasonic(SONAR_TRIG_LEFT, SONAR_ECHO_LEFT),
+  Ultrasonic(SONAR_TRIG_RIGHT, SONAR_ECHO_RIGHT)
+};
 
-// Serial handler for frames coming from serial
+std::queue<uint8_t> sonar_raw_data[NB_SONARS];
+uint16_t sonar_sum[NB_SONARS];
+uint16_t last_sum_send[NB_SONARS];
+
+
+
+unsigned long last_send_millis = 0;
+
+
 CanHandler canHandler;
 
-// OLED display (width, height, I2C, reset pin = -1 for sharing arduino reset pin)
 
 void setup() {
-  // Serial frames
   canHandler.setup();
-  Serial.begin(115200);
-  Serial.println("\n");
+  // Serial.begin(115200);
 
+  // Prefill for better code efficiency later
+  for (uint8_t i = 0; i < NB_SONARS; i++) {
+    for (uint8_t j = 0; j < AVG_SAMPLE; j++) {
+      sonar_raw_data[i].push(100);
+    }
+    sonar_sum[i] = 100 * AVG_SAMPLE;
+  }
 }
 
 void loop() {
-  //sonarArray.update();
 
   std::vector<int> frame = canHandler.read();
-
-  if (millis() - lastMillis > 200) {
-    sendSonarsValueToCan();
-    lastMillis = millis();
+  if (!frame.empty()) {
+    switch(frame[0]) {
+      case 0:   // PING
+        canHandler.send(PONG, 3, 0);
+        canHandler.flush();
+        break;
+    }
   }
-  delay(1);
+
+  bool worth_sending = false;
+  for (uint8_t i = 0; i < NB_SONARS; i++) {
+    sonar_raw_data[i].push((uint8_t) min(sonars[i].read(), 0xffU));
+    sonar_sum[i] += sonar_raw_data[i].back();
+    sonar_sum[i] -= sonar_raw_data[i].front();
+    sonar_raw_data[i].pop();
+    if ((sonar_sum[i] < 40 * AVG_SAMPLE && abs(last_sum_send[i] - sonar_sum[i]) > 2) || (abs(last_sum_send[i] - sonar_sum[i]) > 10)) {
+      worth_sending = true;
+    }
+  }
+
+  if ((worth_sending && millis() - last_send_millis > 20) || (millis() - last_send_millis > 200)) {
+    // Serial.println(millis() - last_send_millis);
+
+    sendSonarsValueToCan();
+    
+    last_send_millis = millis();
+  }
 }
 
 
 void sendSonarsValueToCan()
 {
-  uint8_t measures[6] = {(uint8_t)sonar0.Ranging(CM), (uint8_t)sonar1.Ranging(CM), (uint8_t)sonar2.Ranging(CM), (uint8_t)sonar3.Ranging(CM),(uint8_t)sonar4.Ranging(CM),(uint8_t)sonar5.Ranging(CM) };
-  for (uint8_t i = 0; i < 6; i++) {
-    Serial.print(measures[i]);
-    Serial.print("\t");
-  }
-  Serial.println("\n");
+  canHandler.send(
+    SONAR_DISTANCE,
+    sonar_sum[0] / AVG_SAMPLE,
+    sonar_sum[1] / AVG_SAMPLE,
+    sonar_sum[2] / AVG_SAMPLE,
+    sonar_sum[3] / AVG_SAMPLE,
+    sonar_sum[4] / AVG_SAMPLE,
+    sonar_sum[5] / AVG_SAMPLE
+  );
 
-  canHandler.send(SONAR_DISTANCE, measures[0], measures[1], measures[2], measures[3], measures[4], measures[5]);
-
-  
-  //Serial.print(measures[3]);
   canHandler.flush();
+
+  for(uint8_t i = 0; i < 6; i++) {
+    last_sum_send[i] = sonar_sum[i];
+  }
 }
