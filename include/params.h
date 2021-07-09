@@ -3,7 +3,7 @@
 #include "Arduino.h"
 
 #define NB_SONARS	6
-#define AVG_SAMPLE	3
+#define AVG_SAMPLE	4
 #define DISTANCE_THRESHOLD	30
 #define SUM_THRESHOLD (AVG_SAMPLE * DISTANCE_THRESHOLD)
 

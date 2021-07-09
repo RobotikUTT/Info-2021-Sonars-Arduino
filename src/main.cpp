@@ -76,23 +76,27 @@ void loop() {
     }
   }
 
-  bool worth_sending = false;
+  bool high_priority = false, medium_priority = false;
   for (uint8_t i = 0; i < NB_SONARS; i++) {
     sonar_raw_data[i].push((uint8_t) min(sonars[i].read(), 0xffU));
     sonar_sum[i] += sonar_raw_data[i].back();
     sonar_sum[i] -= sonar_raw_data[i].front();
     sonar_raw_data[i].pop();
-    if ((sonar_sum[i] < 40 * AVG_SAMPLE && abs(last_sum_send[i] - sonar_sum[i]) > 2) || (abs(last_sum_send[i] - sonar_sum[i]) > 10)) {
-      worth_sending = true;
+    if ((sonar_sum[i] < 30 * AVG_SAMPLE && abs(last_sum_send[i] - sonar_sum[i]) > 2 * AVG_SAMPLE) || (abs(last_sum_send[i] - sonar_sum[i]) > 20 * AVG_SAMPLE)) {
+      high_priority = true;
+    }
+    else if ((sonar_sum[i] < 50 * AVG_SAMPLE && abs(last_sum_send[i] - sonar_sum[i]) > 4 * AVG_SAMPLE) || (abs(last_sum_send[i] - sonar_sum[i]) > 10 * AVG_SAMPLE)) {
+      medium_priority = true;
     }
   }
 
-  if ((worth_sending && millis() - last_send_millis > 20) || (millis() - last_send_millis > 200)) {
-    // Serial.println(millis() - last_send_millis);
+  unsigned long now = millis();
+  if ((high_priority && now - last_send_millis > 10) || (medium_priority && now - last_send_millis > 40) || (now - last_send_millis > 200)) {
+    // Serial.println(now - last_send_millis);
 
     sendSonarsValueToCan();
     
-    last_send_millis = millis();
+    last_send_millis = now;
   }
 }
 
